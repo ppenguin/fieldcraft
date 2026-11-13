@@ -142,9 +142,8 @@ fn tip(item: &Item, reachable: bool) -> String {
     s
 }
 
-/// Where the History bar publishes its grip, marker, steps and controls.
-const HANDLES: history_bar::Handles<'static> =
-    history_bar::Handles { grip: "timeline:grip", marker: "timeline:marker", step: "timeline:step:", controls: "timeline:" };
+/// Where the History bar publishes its marker and steps.
+const HANDLES: history_bar::Handles<'static> = history_bar::Handles { marker: "timeline:marker", step: "timeline:step:" };
 
 /// The journal's items as the kit's History strip lays them out: one step each, the badge of a
 /// deletion or an edit and a run's count drawn over its chip.
@@ -211,11 +210,7 @@ pub fn timeline(app: &mut ModelApp, ui: &mut egui::Ui) {
         let oldest = done.saturating_sub(undo);
         let accent = solidcraft_theme::TabAccent::current(ui.ctx());
         let bar = history_bar::Bar {
-            title: "History",
             marker_tip: "The model is here: drag to roll it back or forward",
-            play: false,
-            playing: false,
-            play_labels: kit::PlayLabels { play: "Play", stop: "Stop" },
             accent,
             drag_accent: accent,
             marker: list.iter().position(|i| i.start >= done).unwrap_or(list.len()),
@@ -225,30 +220,26 @@ pub fn timeline(app: &mut ModelApp, ui: &mut egui::Ui) {
             reorder: false,
             handles: HANDLES,
         };
-        let head = history_bar::header(ui, &bar, r);
-        let mut actions = head.actions;
+        // The kit draws no header (title, transport) any more: SolidCraft moved it to its docking
+        // panel's header. Until FieldCraft docks, the strip takes the whole bar.
+        let mut actions = Vec::new();
         if list.is_empty() {
             let k = solidcraft_theme::Tokens::get();
             ui.painter().text(
-                pos2(head.x, r.center().y),
+                pos2(r.left() + k.space_3, r.center().y),
                 Align2::LEFT_CENTER,
                 "Every command that changes the model appears here",
                 FontId::proportional(k.font_label),
                 k.text_dim,
             );
         } else {
-            let strip = Rect::from_min_max(pos2(head.x, r.top()), r.right_bottom());
             let mut steps = Steps { list: &list, done, oldest, t: &t };
-            actions.extend(history_bar::strip(ui, &bar, r, strip, "fc_timeline_strip", &mut steps).actions);
+            actions.extend(history_bar::strip(ui, &bar, r, r, "fc_timeline_strip", &mut steps).actions);
         }
         let start = |slot: usize| list.get(slot).map_or(done + redo, |i| i.start);
         for action in actions {
             roll = match action {
-                history_bar::Action::Seek(history_bar::Seek::First) => Some(oldest),
-                history_bar::Action::Seek(history_bar::Seek::Back) => Some(done.saturating_sub(1)),
-                history_bar::Action::Seek(history_bar::Seek::Forward) => Some(done + 1),
-                history_bar::Action::Seek(history_bar::Seek::Last) => Some(done + redo),
-                history_bar::Action::Seek(history_bar::Seek::Slot { slot, .. }) => Some(start(slot)),
+                history_bar::Action::Seek { slot, .. } => Some(start(slot)),
                 history_bar::Action::Select { step, .. } => list.get(step as usize).filter(|i| i.end >= oldest).map(|i| i.end),
                 _ => roll,
             };

@@ -30,6 +30,7 @@ const HANDLES: app_bar::Handles<'static> = app_bar::Handles {
     home_rect: &["app_bar:home"],
     file: &["app_bar:file"],
     file_rect: &["app_bar:file"],
+    plugins: "app_bar:plugins",
     button: &["app_bar:"],
     separator: "app_bar:separator:",
     search: "app_bar:search",
@@ -122,6 +123,8 @@ fn bar(app: &mut ModelApp, ui: &mut egui::Ui, r: Rect, content: Rect) {
         home: chrome("home", "home", "Samples: models ready to solve"),
         file: "File",
         file_open: app.ui.menu.as_deref() == Some("file"),
+        // FieldCraft runs no SolidCraft plugins.
+        plugins: None,
         actions: vec![
             button("save", "save", &save_tip, !busy, false),
             button("undo", "undo", &undo_tip, undo > 0 && !busy, true),
@@ -173,6 +176,8 @@ fn bar(app: &mut ModelApp, ui: &mut egui::Ui, r: Rect, content: Rect) {
             BarAction::Help { .. } => app.toggle_menu("help"),
             BarAction::Report => app.report_bug(None),
             BarAction::Version => ui.ctx().open_url(egui::OpenUrl::new_tab(&url)),
+            // No Plugins button is drawn (`plugins: None`).
+            BarAction::Plugins { .. } => {}
         }
     }
     let cy = r.center().y;

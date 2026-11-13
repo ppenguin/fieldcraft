@@ -461,7 +461,7 @@ pub fn dropdown(app: &mut ModelApp, ui: &mut egui::Ui, entries: &'static [Capabi
     let rows = rows(app, entries);
     let style = menu_style(ui.ctx());
     ui.spacing_mut().item_spacing.y = 0.0;
-    let width = ribbon::menu_width(ui, rows.iter().map(|r| (r.label, r.note.as_str())));
+    let width = ribbon::menu_width(ui, rows.iter().map(|r| (r.label, r.note.as_str(), "", false)));
     ui.set_width(width);
     let enabled: Vec<&str> = rows.iter().filter(|r| r.enabled).map(|r| r.id).collect();
     ribbon::list_keys(ui, &enabled, &style);
@@ -589,7 +589,8 @@ mod tests {
         let entries = catalogue::panels(Tab::Mesh).find(|p| p.first().is_some_and(|c| c.panel == "Tet")).unwrap_or_default();
         let rows = rows(&app, entries);
         let mut width = 0.0;
-        let _ = ctx.run_ui(egui::RawInput::default(), |ui| width = ribbon::menu_width(ui, rows.iter().map(|r| (r.label, r.note.as_str()))));
+        let _ =
+            ctx.run_ui(egui::RawInput::default(), |ui| width = ribbon::menu_width(ui, rows.iter().map(|r| (r.label, r.note.as_str(), "", false))));
         let margin = kit::Menu::frame().total_margin().sum().x;
         assert!((menu.width() - width - margin).abs() < 1.0, "menu {} wide, rows {width} + {margin}", menu.width());
         for c in entries.iter() {
