@@ -155,9 +155,8 @@ fn tip(item: &Item, reachable: bool) -> String {
     s
 }
 
-/// Where the History bar publishes its grip, marker, steps and controls.
-const HANDLES: history_bar::Handles<'static> =
-    history_bar::Handles { grip: "timeline:grip", marker: "timeline:marker", step: "timeline:step:", controls: "timeline:" };
+/// Where the History bar publishes its marker and steps.
+const HANDLES: history_bar::Handles<'static> = history_bar::Handles { marker: "timeline:marker", step: "timeline:step:" };
 
 /// What the strip shows, in order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -226,6 +225,8 @@ impl Steps<'_> {
             warning: false,
             ink: None,
             tip: &tip,
+            // Built from the label each frame: the journal is short.
+            handle: None,
         };
         let chip = strip.step(&step);
         if strip.ui().is_rect_visible(chip)
@@ -361,16 +362,12 @@ fn contents(app: &mut ModelApp, ui: &mut egui::Ui, t: &Tokens, floating: bool) -
     let mut roll: Option<usize> = None;
     let mut toggle: Option<usize> = None;
     let r = ui.max_rect();
-    let (undo, redo) = app.session.undo_depth();
+    let (undo, _) = app.session.undo_depth();
     let (list, done) = cached_items(app);
     let oldest = done.saturating_sub(undo);
     let accent = solidcraft_theme::TabAccent::current(ui.ctx());
     let bar = history_bar::Bar {
-        title: "History",
         marker_tip: "The model is here: drag to roll it back or forward",
-        play: false,
-        playing: false,
-        play_labels: kit::PlayLabels { play: "Play", stop: "Stop" },
         accent,
         drag_accent: accent,
         // Slots are journal positions: the marker stands after the commands done.
@@ -381,33 +378,29 @@ fn contents(app: &mut ModelApp, ui: &mut egui::Ui, t: &Tokens, floating: bool) -
         reorder: false,
         handles: HANDLES,
     };
-    let head = history_bar::header(ui, &bar, r);
-    let mut actions = head.actions;
+    // The kit draws no header (title, transport) any more: SolidCraft moved it to its docking
+    // panel's header. Until FieldCraft docks, the strip takes the whole bar.
+    let mut actions = Vec::new();
     if list.is_empty() {
         let k = solidcraft_theme::Tokens::get();
         ui.painter().text(
-            pos2(head.x, r.center().y),
+            pos2(r.left() + k.space_3, r.center().y),
             Align2::LEFT_CENTER,
             "Every command that changes the model appears here",
             FontId::proportional(k.font_label),
             k.text_dim,
         );
     } else {
-        let strip = Rect::from_min_max(pos2(head.x, r.top()), r.right_bottom());
         // A run that is no longer one (undone, another model) forgets it was open.
         app.timeline_open.retain(|start| list.iter().any(|i| i.start == *start && i.count() > 1));
         let shown = entries(&list, &app.timeline_open);
         let mut steps = Steps { list: &list, entries: &shown, done, oldest, t, accent, toggle: None };
-        actions.extend(history_bar::strip(ui, &bar, r, strip, "fc_timeline_strip", &mut steps).actions);
+        actions.extend(history_bar::strip(ui, &bar, r, r, "fc_timeline_strip", &mut steps).actions);
         toggle = steps.toggle;
     }
     for action in actions {
         roll = match action {
-            history_bar::Action::Seek(history_bar::Seek::First) => Some(oldest),
-            history_bar::Action::Seek(history_bar::Seek::Back) => Some(done.saturating_sub(1)),
-            history_bar::Action::Seek(history_bar::Seek::Forward) => Some(done + 1),
-            history_bar::Action::Seek(history_bar::Seek::Last) => Some(done + redo),
-            history_bar::Action::Seek(history_bar::Seek::Slot { slot, .. }) => Some(slot),
+            history_bar::Action::Seek { slot, .. } => Some(slot),
             // A command's chip rolls the model to just after it, when the history reaches it.
             history_bar::Action::Select { step, .. } => usize::try_from(step).ok().map(|at| at + 1).filter(|end| *end >= oldest),
             _ => roll,

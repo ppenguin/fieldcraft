@@ -31,10 +31,12 @@ const HANDLES: app_bar::Handles<'static> = app_bar::Handles {
     home_rect: &["app_bar:home"],
     file: &["app_bar:file"],
     file_rect: &["app_bar:file"],
+    plugins: "app_bar:plugins",
     button: &["app_bar:"],
     separator: "app_bar:separator:",
     search: "ribbon:search",
     report: "app_bar:report",
+    pill: "app_bar:pill:",
     settings: "app_bar:settings",
     version: "app_bar:version",
 };
@@ -122,6 +124,8 @@ fn bar(app: &mut ModelApp, ui: &mut egui::Ui, r: Rect, content: Rect) {
         home: chrome("home", "home", "Samples: models ready to solve"),
         file: "File",
         file_open: app.ui.menu.as_deref() == Some("file"),
+        // FieldCraft runs no SolidCraft plugins.
+        plugins: None,
         actions: vec![
             button("save", "save", &save_tip, !busy, false),
             button("undo", "undo", &undo_tip, undo > 0 && !busy, true),
@@ -135,6 +139,8 @@ fn bar(app: &mut ModelApp, ui: &mut egui::Ui, r: Rect, content: Rect) {
             tip: "Report a bug: draft a GitHub issue with the version, the OS and the last error; nothing is sent until you submit it",
             icon_only: false,
         },
+        // The kit's link pills: none (FieldCraft draws its own Update pill).
+        pills: Vec::new(),
         search: false,
         search_shortcut: None,
         assistant: false,
@@ -173,6 +179,8 @@ fn bar(app: &mut ModelApp, ui: &mut egui::Ui, r: Rect, content: Rect) {
             BarAction::Help { .. } => app.toggle_menu("help"),
             BarAction::Report => app.report_bug(None),
             BarAction::Version => ui.ctx().open_url(egui::OpenUrl::new_tab(&url)),
+            // No Plugins button and no kit pills are drawn (`plugins: None`, `pills` empty).
+            BarAction::Plugins { .. } | BarAction::Pill { .. } | BarAction::HidePill { .. } => {}
         }
     }
     let cy = r.center().y;
@@ -312,7 +320,7 @@ fn document_tab(app: &mut ModelApp, ui: &mut egui::Ui, r: Rect, x0: f32, x1: f32
     let close_key = shortcut("W");
     let menu = [app_bar::TabMenuRow { id: "close", label: "Close", key_on_selected: &close_key, needs_others: false }];
     let mut strip = app_bar::TabStrip {
-        tabs: vec![app_bar::DocTab { name: &name, list_name: &name, dirty, place: &place }],
+        tabs: vec![app_bar::DocTab { name: &name, list_name: &name, dirty, place: &place, security: None }],
         selected: 0,
         shown_selected: Some(0),
         title_bar: true,
